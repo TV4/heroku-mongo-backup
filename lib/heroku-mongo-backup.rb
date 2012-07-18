@@ -33,21 +33,21 @@ module HerokuMongoBackup
 
     def store
       backup = {}
-  
+
       @db.collections.each do |col|
         backup['system.indexes.db.name'] = col.db.name if col.name == "system.indexes"
-    
+
         records = []
-    
+
         col.find().each do |record|
           records << record
         end
 
         backup[col.name] = records
       end
-  
+
       marshal_dump = Marshal.dump(backup)
-  
+
       file = File.new(@file_name, 'w')
       file.binmode
       file = Zlib::GzipWriter.new(file)
@@ -62,15 +62,15 @@ module HerokuMongoBackup
 
       obj.each do |col_name, records|
         next if col_name =~ /^system\./
-    
+
         @db.drop_collection(col_name)
         dest_col = @db.create_collection(col_name)
-    
+
         records.each do |record|
           dest_col.insert record
         end
       end
-  
+
       # Load indexes here
       col_name = "system.indexes"
       dest_index_col = @db.collection(col_name)
@@ -88,17 +88,17 @@ module HerokuMongoBackup
       @db = connection.db(uri.path.gsub(/^\//, ''))
       @db.authenticate(uri.user, uri.password) if uri.user
     end
-    
+
     def ftp_connect
       @ftp = Net::FTP.new(ENV['FTP_HOST'])
       @ftp.passive = true
       @ftp.login(ENV['FTP_USERNAME'], ENV['FTP_PASSWORD'])
     end
-    
+
     def ftp_upload
       @ftp.putbinaryfile(@file_name)
     end
-    
+
     def ftp_download
       open(@file_name, 'w') do |file|
         file_content = @ftp.getbinaryfile(@file_name)
@@ -106,7 +106,7 @@ module HerokuMongoBackup
         file.write file_content
       end
     end
-    
+
     def s3_connect
       bucket            = ENV['S3_BACKUPS_BUCKET']
       if bucket.nil?
@@ -138,9 +138,17 @@ module HerokuMongoBackup
       end
     end
 
+    def s3_download_latest_backup
+      open(@file_name, 'w') do |file|
+        file_content = HerokuMongoBackup::s3_download_latest(@bucket)
+        file.binmode
+        file.write file_content
+      end
+    end
+
     def initialize
       @file_name = Time.now.strftime("%Y-%m-%d_%H-%M-%S.gz")
-  
+
       if((ENV['RAILS_ENV'] || ENV['RACK_ENV']) == 'production')
         #config_template = ERB.new(IO.read("config/mongoid.yml"))
         #uri = YAML.load(config_template.result)['production']['uri']
@@ -159,11 +167,11 @@ module HerokuMongoBackup
         database        = config['database']
         uri = "mongodb://#{host}:#{port}/#{database}"
       end
-  
+
       @url = uri
-  
+
       puts "Using databased: #{@url}"
-  
+
       self.db_connect
 
       if ENV['UPLOAD_TYPE'] == 'ftp'
@@ -174,7 +182,7 @@ module HerokuMongoBackup
     end
 
     def backup
-      self.chdir    
+      self.chdir
       self.store
 
       if ENV['UPLOAD_TYPE'] == 'ftp'
@@ -184,17 +192,30 @@ module HerokuMongoBackup
         self.s3_upload
       end
     end
-    
+
     def restore file_name
       @file_name = file_name
-  
+
       self.chdir
-      
+
       if ENV['UPLOAD_TYPE'] == 'ftp'
         self.ftp_download
         @ftp.close
       else
         self.s3_download
+      end
+      self.load
+    end
+
+    def restore_from_latest
+      @file_name = 'latest' + @file_name
+
+      self.chdir
+
+      if ENV['UPLOAD_TYPE'] == 'ftp'
+        raise "Can't find latest backup on FTP"
+      else
+        self.s3_download_latest_backup
       end
       self.load
     end

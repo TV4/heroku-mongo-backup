@@ -35,6 +35,18 @@ if defined?(S3)
 
       return content
     end
+      def HerokuMongoBackup::s3_download_latest(bucket)
+      object = bucket.objects.last
+      content = object.content(reload=true)
+
+      puts "Backup file:"
+      puts "  name: #{filename}"
+      puts "  type: #{object.content_type}"
+      puts "  size: #{content.size} bytes"
+      puts "\n"
+
+      return content
+    end
   else
     begin
       require 'aws/s3'
@@ -60,6 +72,10 @@ if defined?(S3)
       end
       def HerokuMongoBackup::s3_download(bucket, filename)
         content = AWS::S3::S3Object.value("backups/#{filename}", bucket)
+        return content
+      end
+      def HerokuMongoBackup::s3_download_latest(bucket)
+        content = AWS::S3::Bucket.objects(bucket, :marker => 'backups/').last.value
         return content
       end
     else

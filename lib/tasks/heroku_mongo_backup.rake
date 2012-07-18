@@ -16,4 +16,8 @@ namespace :mongo do
       puts "Please provide backup file to restore from. Thanks!"
     end
   end
+
+  task :restore_from_latest => :environment do
+    HerokuMongoBackup::Backup.new.restore_from_latest
+  end
 end
