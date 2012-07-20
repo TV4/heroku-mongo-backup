@@ -149,7 +149,7 @@ module HerokuMongoBackup
     def initialize
       @file_name = Time.now.strftime("%Y-%m-%d_%H-%M-%S.gz")
 
-      if((ENV['RAILS_ENV'] || ENV['RACK_ENV']) == 'production')
+      if ['production','stage'].include? (ENV['RAILS_ENV'] || ENV['RACK_ENV'])
         #config_template = ERB.new(IO.read("config/mongoid.yml"))
         #uri = YAML.load(config_template.result)['production']['uri']
         uri = ENV['MONGO_URL']
