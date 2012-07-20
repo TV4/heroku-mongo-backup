@@ -17,6 +17,7 @@ namespace :mongo do
     end
   end
 
+  desc "Restore latest command gets latest backup file from S3 server and pushes to db."
   task :restore_from_latest => :environment do
     HerokuMongoBackup::Backup.new.restore_from_latest
   end
