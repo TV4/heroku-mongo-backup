@@ -64,11 +64,15 @@ module HerokuMongoBackup
         next if col_name =~ /^system\./
 
         @db.drop_collection(col_name)
+        puts "Collection #{col_name} dropped"
         dest_col = @db.create_collection(col_name)
-
+        puts "New empty collection #{col_name created}"
+        record_count = 0
         records.each do |record|
           dest_col.insert record
+          record_count += 1
         end
+        puts "#{record_count} records inserted to collection #{col_name}"
       end
 
       # Load indexes here
@@ -78,6 +82,7 @@ module HerokuMongoBackup
         if index['_id']
           index['ns'] = index['ns'].sub(obj['system.indexes.db.name'], dest_index_col.db.name)
           dest_index_col.insert index
+          puts "Fixing index for: #{col_name}"
         end
       end
     end
@@ -170,7 +175,7 @@ module HerokuMongoBackup
 
       @url = uri
 
-      puts "Using databased: #{@url}"
+      puts "Using database: #{@url}"
 
       self.db_connect
 
@@ -194,6 +199,7 @@ module HerokuMongoBackup
     end
 
     def restore file_name
+      puts "Restore"
       @file_name = file_name
 
       self.chdir
